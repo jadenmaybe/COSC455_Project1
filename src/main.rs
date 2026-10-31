@@ -1,3 +1,6 @@
+use std::env;
+use std::fs;
+
 /// Trait for a simple lolcompiler front-end. 
 /// Errors should cause immediate exit inside the implementation.
 pub trait Compiler {
@@ -122,11 +125,15 @@ impl LexicalAnalyzer for SimpleLexicalAnalyzer {
     }
 
     fn lookup(&self, s: &str) -> bool {
-        self.start_tags.iter().any(|s_tag| s_tag == s) ||
-        self.end_tags.iter().any(|e_tag| e_tag == s) ||
-        self.tag_names.iter().any(|n_tag| n_tag == s) ||
-        self.statements.iter().any(|stmt| stmt == s)
+        matches!(
+            s.to_uppercase().as_str(),
+            "#HAI" | "#KBYE" | "#OBTW" | "#TLDR" | "#MAEK" | "#OIC" | 
+            "#GIMMEH" | "#MKAY" | "HEAD" | "TITLE" | "PARAGRAF" | 
+            "BOLD" | "LIST" | "ITEM" | "#NEWLINE" | "LINX" | 
+            "#IHAZ" | "#ITIZ" | "VAR"
+        ) || !s.is_empty()
     }
+
 }
 
 // -- Syntax Analyzer
@@ -157,62 +164,391 @@ impl LolcodeCompiler {
         }
     }
 
-    #[inline] fn is_start_tag(&self, s: &str) -> bool { self.lexer.start_tags.iter().any(|s_tag| s_tag == s) }
-    #[inline] fn is_end_tag(&self, s: &str) -> bool { self.lexer.end_tags.inter().any(|e_tag| e_tag == s) }
-    #[inline] fn is_tag_name(&self, s: &str) -> bool { self.lexer.tag_names.inter().any()(|n_tag| n_tag == s) }
-    #[inline] fn is_statement(&self, s: &str) -> bool { self.lexer.statements.inter().any()(|stmt| stmt == s)}
+    // Tokens mirroring the terminals in the grammar
+    #[inline] fn is_hai(&self, s: &str) -> bool { s.eq_ignore_ascii_case("#HAI") }
+    #[inline] fn is_kbye(&self, s: &str) -> bool { s.eq_ignore_ascii_case("#KBYE") }
+    #[inline] fn is_obtw(&self, s: &str) -> bool { s.eq_ignore_ascii_case("#OBTW") }
+    #[inline] fn is_tldr(&self, s: &str) -> bool { s.eq_ignore_ascii_case("#TLDR") }
+    #[inline] fn is_maek(&self, s: &str) -> bool { s.eq_ignore_ascii_case("#MAEK") }
+    #[inline] fn is_oic(&self, s: &str) -> bool { s.eq_ignore_ascii_case("#OIC") }
+    #[inline] fn is_gimmeh(&self, s: &str) -> bool { s.eq_ignore_ascii_case("#GIMMEH") }
+    #[inline] fn is_mkay(&self, s: &str) -> bool { s.eq_ignore_ascii_case("#MKAY") }
+    #[inline] fn is_head(&self, s: &str) -> bool { s.eq_ignore_ascii_case("HEAD") }
+    #[inline] fn is_title(&self, s: &str) -> bool { s.eq_ignore_ascii_case("TITLE") }
+    #[inline] fn is_paragraf(&self, s: &str) -> bool { s.eq_ignore_ascii_case("PARAGRAF") }
+    #[inline] fn is_bold(&self, s: &str) -> bool { s.eq_ignore_ascii_case("BOLD") }
+    #[inline] fn is_list(&self, s: &str) -> bool { s.eq_ignore_ascii_case("LIST") }
+    #[inline] fn is_item(&self, s: &str) -> bool { s.eq_ignore_ascii_case("ITEM") }
+    #[inline] fn is_linx(&self, s: &str) -> bool { s.eq_ignore_ascii_case("LINX") }
+    #[inline] fn is_newline(&self, s: &str) -> bool { s.eq_ignore_ascii_case("#NEWLINE") }
+    #[inline] fn is_ihaz(&self, s: &str) -> bool { s.eq_ignore_ascii_case("#IHAZ") }
+    #[inline] fn is_var(&self, s: &str) -> bool { s.eq_ignore_ascii_case("VAR") }
+    
+    
+    fn hai(&mut self) {
+        if self.is_hai(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when '#HAI' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn kbye(&mut self) {
+        if self.is_kbye(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when '#KBYE' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn obtw(&mut self) {
+        if self.is_obtw(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when '#OBTW' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn tldr(&mut self) {
+        if self.is_tldr(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when '#TLDR' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn maek(&mut self) {
+        if self.is_maek(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when '#MAEK' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn mkay(&mut self) {
+        if self.is_mkay(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when '#MKAY' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn gimmeh(&mut self) {
+        if self.is_gimmeh(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when '#GIMMEH' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn oic(&mut self) {
+        if self.is_oic(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when '#OIC' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn head_name(&mut self) {
+        if self.is_head(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when 'HEAD' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn title_name(&mut self) {
+        if self.is_title(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when 'TITLE' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn paragraf_name(&mut self) {
+        if self.is_paragraf(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when 'PARAGRAF' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn bold_name(&mut self) {
+        if self.is_bold(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when 'BOLD' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn list_name(&mut self) {
+        if self.is_list(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when 'LIST' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn item_name(&mut self) {
+        if self.is_item(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when 'ITEM' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn linx_name(&mut self) {
+        if self.is_linx(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when 'LINX' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn newline_token(&mut self) {
+        if self.is_newline(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when '#NEWLINE' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn ihaz(&mut self) {
+        if self.is_ihaz(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when '#IHAZ' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn var_keyword(&mut self) {
+        if self.is_var(&self.current_tok) {
+            let _ = self.next_token();
+        } else {
+            eprintln!("Syntax error: '{}' was found when 'VAR' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+    }
+
+    fn varname(&mut self) {
+        let _ = self.next_token();
+    }
+
+    fn varvalue(&mut self) {
+        let _ = self.next_token();
+    }
+
+    fn address(&mut self) {
+        let _ = self.next_token();
+    }
 
     fn parse_lolcode(&mut self){
+        self.hai();
+        self.parse_comment();
+        self.parse_head();
+        self.parse_variable_define(); // optional
+        self.parse_body();
+        self.kbye();
     }
 
     fn parse_head(&mut self){
+        if self.is_maek(&self.current_tok) {
+            self.maek();
+            self.head_name();
+            self.parse_title();
+            self.mkay();
+        }
     }
 
     fn parse_title(&mut self){
+        self.gimmeh();
+        self.title_name();
+        self.parse_text();
+        self.oic();
     }
 
     fn parse_comment(&mut self){
+        self.obtw();
+        self.parse_text();
+        self.tldr();
     }
 
     fn parse_body(&mut self){
+        if self.is_obtw(&self.current_tok) {
+            self.parse_comment();
+        } else if self.is_newline(&self.current_tok) {
+            self.parse_newline();
+        } else if self.is_ihaz(&self.current_tok) {
+            self.parse_variable_use();
+        } else if self.is_maek(&self.current_tok) {
+            let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
+            if self.is_paragraf(&peek) {
+                self.parse_paragraph();
+            } else if self.is_list(&peek) {
+                self.parse_list();
+            } else {
+                self.parse_text();
+            }
+        } else if self.is_gimmeh(&self.current_tok) {
+            let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
+            if self.is_bold(&peek) {
+                self.parse_bold();
+            } else if self.is_linx(&peek) {
+                self.parse_link();
+            } else {
+                self.parse_text();
+            }
+        } else {
+            self.parse_text();
+        }
+        self.parse_body();
     }
+
 
     fn parse_paragraph(&mut self){
+        self.maek();
+        self.paragraf_name();
+        self.parse_variable_define(); // optional
+        self.parse_inner_paragraph();
+        self.mkay();
     }
 
-    fn parse_inner_paragraph(&mut self){        
+    fn parse_inner_paragraph(&mut self){
+        if !self.current_tok.is_empty() && !self.is_mkay(&self.current_tok) {
+            self.parse_inner_text();
+            self.parse_inner_paragraph();
+        }        
     }
 
     fn parse_inner_text(&mut self){
+        if self.is_ihaz(&self.current_tok) {
+            self.parse_variable_use();
+        } else if self.is_obtw(&self.current_tok) {
+            self.parse_comment();
+        } else if self.is_gimmeh(&self.current_tok) {
+            let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
+            if self.is_bold(&peek) {
+                self.parse_bold();
+            } else if self.is_linx(&peek) {
+                self.parse_link();
+            } else {
+                self.parse_text();
+            }
+        } else if self.is_maek(&self.current_tok) {
+            let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
+            if self.is_list(&peek) {
+                self.parse_list();
+            } else {
+                self.parse_text();
+            }
+        } else if self.is_newline(&self.current_tok) {
+            self.parse_newline();
+        } else {
+            self.parse_text();
+        }
     }
 
     fn parse_variable_define(&mut self){
+        if self.is_var(&self.current_tok) {
+            self.var_keyword();
+            self.varname();
+            self.varvalue();
+        }
     }
 
     fn parse_variable_use(&mut self){
+        self.ihaz();
+        self.varname();
     }
 
     fn parse_bold(&mut self){
+        self.gimmeh();
+        self.bold_name();
+        self.parse_text();
+        self.oic();
     }
 
     fn parse_list(&mut self){
+        self.gimmeh();
+        self.bold_name();
+        self.parse_text();
+        self.oic();
     }
 
     fn parse_list_items(&mut self){
+        if self.is_gimmeh(&self.current_tok) {
+            let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
+            if self.is_item(&peek) {
+                self.gimmeh();
+                self.item_name();
+                self.parse_variable_define(); // optional
+                self.parse_inner_list();
+                self.oic();
+                self.parse_list_items();
+            }
+        }
     }
 
     fn parse_inner_list(&mut self){
+        if self.is_obtw(&self.current_tok) {
+            self.parse_comment();
+        } else if self.is_newline(&self.current_tok) {
+            self.parse_newline();
+        } else if self.is_ihaz(&self.current_tok) {
+            self.parse_variable_use();
+        } else if self.is_gimmeh(&self.current_tok) {
+            let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
+            if self.is_bold(&peek) {
+                self.parse_bold();
+            } else if self.is_linx(&peek) {
+                self.parse_link();
+            } else {
+                self.parse_text();
+            }
+        } else if self.is_maek(&self.current_tok) {
+            let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
+            if self.is_list(&peek) {
+                self.parse_list();
+            } else {
+                self.parse_text();
+            }
+        } else {
+            self.parse_text();
+        }
+        self.parse_inner_list();
     }
 
     fn parse_link(&mut self){
+        self.gimmeh();
+        self.linx_name();
+        self.address();
+        self.oic();
     }
 
     fn parse_newline(&mut self){
+        self.newline_token();
     }
 
     fn parse_text(&mut self){
+        let _ = self.next_token();
     }
-
 }
 
 
@@ -238,7 +574,7 @@ impl Compiler for LolcodeCompiler {
     }
 
     fn parse(&mut self) {
-        self.lolspeak();
+        self.parse_lolcode();
         if !self.lexer.tokens.is_empty() || !self.current_tok.is_empty() {
             eprintln!("Syntax error: Additional tokens found after the sentence.");
             std::process::exit(1);
