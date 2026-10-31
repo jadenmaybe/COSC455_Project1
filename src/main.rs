@@ -1,5 +1,7 @@
 use std::env;
 use std::fs;
+use std::process::{Command, ExitStatus};
+use std::io;
 
 /// Trait for a simple lolcompiler front-end. 
 /// Errors should cause immediate exit inside the implementation.
@@ -141,6 +143,7 @@ impl LexicalAnalyzer for SimpleLexicalAnalyzer {
 pub struct LolcodeCompiler {
     lexer: SimpleLexicalAnalyzer,
     current_tok: String,
+    pub html_output: String,
 }
 
 impl LolcodeCompiler {
@@ -148,6 +151,7 @@ impl LolcodeCompiler {
         Self {
             lexer: SimpleLexicalAnalyzer::new(""),
             current_tok: String::new(),
+            html_output: String::new(),
         }
     }
 
@@ -585,7 +589,29 @@ impl Compiler for LolcodeCompiler {
     fn set_current_token(&mut self, tok: String) { self.current_tok = tok; }
 }
 
+// -- Cross-platform Browser Function
+fn open_in_browser(path: &str) -> io::Result<ExitStatus> {
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("cmd")
+            .args(["/c", "start", "", path])
+            .status()
+    }
 
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(path)
+            .status()
+    }
+
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))]
+    {
+        Command::new("xdg-open")
+            .arg(path)
+            .status()
+    }
+}
 
 // -- Main
 fn main() {
@@ -604,5 +630,14 @@ fn main() {
     let mut compiler = LolcodeCompiler::new();
     compiler.compile(&sentence);
     compiler.parse();
+
+
+    /*let html_file = "index.html";
+    
+    match open_in_browser(html_file) {
+        Ok(status) if status.success() => println!("Successfully opened {} in the default browser.", html_file),
+        Ok(status) => eprintln!("Browser command exited with an error status: {}", status),
+        Err(e) => eprintln!("Failed to execute the system command: {}", e),
+    }*/
 
 }
