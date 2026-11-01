@@ -193,6 +193,7 @@ impl LolcodeCompiler {
     fn hai(&mut self) {
         if self.is_hai(&self.current_tok) {
             let _ = self.next_token();
+            self.html_output.push_str("<!DOCTYPE html>\n<html>\n");
         } else {
             eprintln!("Syntax error: '{}' was found when '#HAI' was expected.", self.current_tok);
             std::process::exit(1);
@@ -202,6 +203,7 @@ impl LolcodeCompiler {
     fn kbye(&mut self) {
         if self.is_kbye(&self.current_tok) {
             let _ = self.next_token();
+            self.html_output.push_str("</html>\n");
         } else {
             eprintln!("Syntax error: '{}' was found when '#KBYE' was expected.", self.current_tok);
             std::process::exit(1);
@@ -265,6 +267,7 @@ impl LolcodeCompiler {
     fn head_name(&mut self) {
         if self.is_head(&self.current_tok) {
             let _ = self.next_token();
+            self.html_output.push_str("<head>");
         } else {
             eprintln!("Syntax error: '{}' was found when 'HEAD' was expected.", self.current_tok);
             std::process::exit(1);
@@ -274,6 +277,7 @@ impl LolcodeCompiler {
     fn title_name(&mut self) {
         if self.is_title(&self.current_tok) {
             let _ = self.next_token();
+            self.html_output.push_str("<title>");
         } else {
             eprintln!("Syntax error: '{}' was found when 'TITLE' was expected.", self.current_tok);
             std::process::exit(1);
@@ -283,6 +287,7 @@ impl LolcodeCompiler {
     fn paragraf_name(&mut self) {
         if self.is_paragraf(&self.current_tok) {
             let _ = self.next_token();
+            self.html_output.push_str("<p>");
         } else {
             eprintln!("Syntax error: '{}' was found when 'PARAGRAF' was expected.", self.current_tok);
             std::process::exit(1);
@@ -292,6 +297,7 @@ impl LolcodeCompiler {
     fn bold_name(&mut self) {
         if self.is_bold(&self.current_tok) {
             let _ = self.next_token();
+            self.html_output.push_str("<b>");
         } else {
             eprintln!("Syntax error: '{}' was found when 'BOLD' was expected.", self.current_tok);
             std::process::exit(1);
@@ -301,6 +307,7 @@ impl LolcodeCompiler {
     fn list_name(&mut self) {
         if self.is_list(&self.current_tok) {
             let _ = self.next_token();
+            self.html_output.push_str("<ul>");
         } else {
             eprintln!("Syntax error: '{}' was found when 'LIST' was expected.", self.current_tok);
             std::process::exit(1);
@@ -310,6 +317,7 @@ impl LolcodeCompiler {
     fn item_name(&mut self) {
         if self.is_item(&self.current_tok) {
             let _ = self.next_token();
+            self.html_output.push_str("<li>");
         } else {
             eprintln!("Syntax error: '{}' was found when 'ITEM' was expected.", self.current_tok);
             std::process::exit(1);
@@ -319,6 +327,7 @@ impl LolcodeCompiler {
     fn linx_name(&mut self) {
         if self.is_linx(&self.current_tok) {
             let _ = self.next_token();
+            self.html_output.push_str("<a href=\"");
         } else {
             eprintln!("Syntax error: '{}' was found when 'LINX' was expected.", self.current_tok);
             std::process::exit(1);
@@ -328,6 +337,7 @@ impl LolcodeCompiler {
     fn newline_token(&mut self) {
         if self.is_newline(&self.current_tok) {
             let _ = self.next_token();
+            self.html_output.push_str("<br>");
         } else {
             eprintln!("Syntax error: '{}' was found when '#NEWLINE' was expected.", self.current_tok);
             std::process::exit(1);
@@ -379,6 +389,7 @@ impl LolcodeCompiler {
             self.head_name();
             self.parse_title();
             self.mkay();
+            self.html_output.push_str("</head>")
         }
     }
 
@@ -387,22 +398,28 @@ impl LolcodeCompiler {
         self.title_name();
         self.parse_text();
         self.oic();
+        self.html_output.push_str("</title>");
     }
 
     fn parse_comment(&mut self){
         self.obtw();
+        self.html_output.push_str("<!-- ");
         self.parse_text();
         self.tldr();
+        self.html_output.push_str(" -->");
     }
 
     fn parse_body(&mut self){
-        if self.is_obtw(&self.current_tok) {
-            self.parse_comment();
-        } else if self.is_newline(&self.current_tok) {
-            self.parse_newline();
-        } else if self.is_ihaz(&self.current_tok) {
-            self.parse_variable_use();
-        } else if self.is_maek(&self.current_tok) {
+        self.html_output.push_str("<body>");
+        // parse inner body until end tag is 
+        while !self.lexer.tokens.is_empty() && !self.is_kbye(&self.current_tok) {
+            self.parse_inner_body();
+        }
+        self.html_output.push_str("</body>");
+    }
+
+    fn parse_inner_body(&mut self){
+        if self.is_maek(&self.current_tok) {
             let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
             if self.is_paragraf(&peek) {
                 self.parse_paragraph();
@@ -411,6 +428,12 @@ impl LolcodeCompiler {
             } else {
                 self.parse_text();
             }
+        } else if self.is_obtw(&self.current_tok) {
+            self.parse_comment();
+        } else if self.is_newline(&self.current_tok) {
+            self.parse_newline();
+        } else if self.is_ihaz(&self.current_tok) {
+            self.parse_variable_use();
         } else if self.is_gimmeh(&self.current_tok) {
             let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
             if self.is_bold(&peek) {
@@ -421,18 +444,21 @@ impl LolcodeCompiler {
                 self.parse_text();
             }
         } else {
+            self.html_output.push_str("<p>");
             self.parse_text();
+            self.html_output.push_str("</p>\n");
         }
-        self.parse_body();
     }
 
 
     fn parse_paragraph(&mut self){
         self.maek();
         self.paragraf_name();
+        self.html_output.push_str("<p>");
         self.parse_variable_define(); // optional
         self.parse_inner_paragraph();
         self.mkay();
+        self.html_output.push_str("</p>");
     }
 
     fn parse_inner_paragraph(&mut self){
@@ -488,6 +514,7 @@ impl LolcodeCompiler {
         self.bold_name();
         self.parse_text();
         self.oic();
+        self.html_output.push_str("</b>");
     }
 
     fn parse_list(&mut self){
@@ -495,6 +522,7 @@ impl LolcodeCompiler {
         self.bold_name();
         self.parse_text();
         self.oic();
+        self.html_output.push_str("</ul>");
     }
 
     fn parse_list_items(&mut self){
@@ -545,6 +573,7 @@ impl LolcodeCompiler {
         self.linx_name();
         self.address();
         self.oic();
+        self.html_output.push_str("</a>");
     }
 
     fn parse_newline(&mut self){
@@ -568,7 +597,6 @@ impl LolcodeCompiler {
         let _ = self.next_token();
         self.parse_text();
     }
-    
 }
 
 
