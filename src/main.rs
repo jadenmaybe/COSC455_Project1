@@ -341,7 +341,6 @@ impl LolcodeCompiler {
     fn linx_name(&mut self) {
         if self.is_linx(&self.current_tok) {
             let _ = self.next_token();
-            self.html_output.push_str("<a href=\"");
         } else {
             eprintln!("Syntax error: '{}' was found when 'LINX' was expected.", self.current_tok);
             std::process::exit(1);
@@ -659,9 +658,13 @@ fn parse_list(&mut self){
     fn parse_link(&mut self){
         self.gimmeh();
         self.linx_name();
+        
+        let url = self.current_tok.clone(); 
         self.address();
+        
         self.oic();
-        self.html_output.push_str("</a>");
+        let link_html = format!("<a href=\"{}\">{}</a>", url, url);
+        self.html_output.push_str(&link_html);
     }
 
     fn parse_newline(&mut self){
