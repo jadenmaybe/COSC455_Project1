@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::path::Path;
 use std::process::{Command, ExitStatus};
 use std::io;
 
@@ -551,8 +552,23 @@ impl LolcodeCompiler {
     }
 
     fn parse_text(&mut self){
+        if self.current_tok.is_empty() 
+            || self.is_tldr(&self.current_tok)
+            || self.is_oic(&self.current_tok)
+            || self.is_mkay(&self.current_tok)
+            || self.is_hai(&self.current_tok)
+            || self.is_kbye(&self.current_tok)
+            || self.current_tok.starts_with('#') 
+            || self.lexer.tag_names.iter().any(|t| t.eq_ignore_ascii_case(&self.current_tok))
+        {
+            return;
+        }
+        let val = self.current_tok.clone();
+        self.html_output.push_str(&format!("{} ", val));
         let _ = self.next_token();
+        self.parse_text();
     }
+    
 }
 
 
@@ -632,12 +648,25 @@ fn main() {
     compiler.parse();
 
 
-    /*let html_file = "index.html";
-    
-    match open_in_browser(html_file) {
-        Ok(status) if status.success() => println!("Successfully opened {} in the default browser.", html_file),
+    let path = Path::new(filename);
+    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
+    let html_filename = format!("{}.html", stem);
+
+    fs::write(&html_filename, &compiler.html_output).unwrap_or_else(|err| {
+        eprintln!("Error writing HTML file '{}': {}", html_filename, err);
+        std::process::exit(1);
+    });
+
+    println!("Compilation successful! Generated {}", html_filename);
+
+    let absolute_path = fs::canonicalize(&html_filename)
+        .unwrap_or_else(|_| path.to_path_buf());
+    let path_str = absolute_path.to_str().unwrap_or(&html_filename);
+
+    match open_in_browser(path_str) {
+        Ok(status) if status.success() => println!("Successfully opened {} in the default browser.", html_filename),
         Ok(status) => eprintln!("Browser command exited with an error status: {}", status),
         Err(e) => eprintln!("Failed to execute the system command: {}", e),
-    }*/
+    }
 
 }
