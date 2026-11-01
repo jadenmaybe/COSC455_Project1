@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -145,6 +146,7 @@ pub struct LolcodeCompiler {
     lexer: SimpleLexicalAnalyzer,
     current_tok: String,
     pub html_output: String,
+    vars: HashMap<String, String>,
 }
 
 impl LolcodeCompiler {
@@ -153,6 +155,7 @@ impl LolcodeCompiler {
             lexer: SimpleLexicalAnalyzer::new(""),
             current_tok: String::new(),
             html_output: String::new(),
+            vars: HashMap::new(),
         }
     }
 
@@ -187,6 +190,7 @@ impl LolcodeCompiler {
     #[inline] fn is_linx(&self, s: &str) -> bool { s.eq_ignore_ascii_case("LINX") }
     #[inline] fn is_newline(&self, s: &str) -> bool { s.eq_ignore_ascii_case("#NEWLINE") }
     #[inline] fn is_ihaz(&self, s: &str) -> bool { s.eq_ignore_ascii_case("#IHAZ") }
+    #[inline] fn is_itiz(&self, s: &str) -> bool { s.eq_ignore_ascii_case("#ITIZ") }
     #[inline] fn is_var(&self, s: &str) -> bool { s.eq_ignore_ascii_case("VAR") }
     
     
@@ -434,19 +438,26 @@ impl LolcodeCompiler {
             self.parse_newline();
         } else if self.is_ihaz(&self.current_tok) {
             self.parse_variable_use();
+        } else if self.is_ihaz(&self.current_tok) {
+            let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
+            if self.is_var(&peek) {
+                self.parse_variable_use();
+            } else {
+                self.parse_variable_define();
+            }    
         } else if self.is_gimmeh(&self.current_tok) {
             let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
             if self.is_bold(&peek) {
                 self.parse_bold();
             } else if self.is_linx(&peek) {
                 self.parse_link();
+            } else if self.is_var(&peek) {
+                self.parse_variable_use();
             } else {
                 self.parse_text();
             }
         } else {
-            self.html_output.push_str("<p>");
             self.parse_text();
-            self.html_output.push_str("</p>\n");
         }
     }
 
@@ -479,6 +490,8 @@ impl LolcodeCompiler {
                 self.parse_bold();
             } else if self.is_linx(&peek) {
                 self.parse_link();
+            } else if self.is_var(&peek) {
+                self.parse_variable_use(); 
             } else {
                 self.parse_text();
             }
@@ -497,16 +510,34 @@ impl LolcodeCompiler {
     }
 
     fn parse_variable_define(&mut self){
-        if self.is_var(&self.current_tok) {
-            self.var_keyword();
+        if self.is_ihaz(&self.current_tok) {
+            self.ihaz();
+            let name = self.current_tok.clone(); // setting retrieved name token to name
             self.varname();
+            if self.is_itiz(&self.current_tok) {
+                let _ = self.next_token();
+            } else {
+                eprintln!("Syntax error: '{}' was found when '#ITIZ' was expected.", self.current_tok);
+                std::process::exit(1);
+            }
+            let val = self.current_tok.clone(); // setting retrieved value token to var
             self.varvalue();
+            self.mkay();
+            
+            self.vars.insert(name, val); // storing defined variable to hashmap
         }
     }
 
     fn parse_variable_use(&mut self){
-        self.ihaz();
+        self.gimmeh();
+        self.var_keyword();
+        let var_name = self.current_tok.clone();
         self.varname();
+        self.oic();
+
+        let val = self.vars.get(&var_name).cloned().unwrap_or(var_name);
+
+        self.html_output.push_str(&format!("{}", val));
     }
 
     fn parse_bold(&mut self){
@@ -552,6 +583,8 @@ impl LolcodeCompiler {
                 self.parse_bold();
             } else if self.is_linx(&peek) {
                 self.parse_link();
+            } else if self.is_var(&peek) {
+                self.parse_variable_use();
             } else {
                 self.parse_text();
             }
