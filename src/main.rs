@@ -146,7 +146,7 @@ pub struct LolcodeCompiler {
     lexer: SimpleLexicalAnalyzer,
     current_tok: String,
     pub html_output: String,
-    vars: HashMap<String, String>,
+    vars: Vec<HashMap<String, String>>,
 }
 
 impl LolcodeCompiler {
@@ -155,7 +155,17 @@ impl LolcodeCompiler {
             lexer: SimpleLexicalAnalyzer::new(""),
             current_tok: String::new(),
             html_output: String::new(),
-            vars: HashMap::new(),
+            vars: vec![HashMap::new()],
+        }
+    }
+
+    fn push_scope(&mut self) {
+        self.vars.push(HashMap::new());
+    }
+
+    fn pop_scope(&mut self) {
+        if self.vars.len() > 1 {
+            self.vars.pop();
         }
     }
 
@@ -415,7 +425,7 @@ impl LolcodeCompiler {
 
     fn parse_body(&mut self){
         self.html_output.push_str("<body>");
-        // parse inner body until end tag is 
+        // parse inner body until end tag is found/no more tokens
         while !self.lexer.tokens.is_empty() && !self.is_kbye(&self.current_tok) {
             self.parse_inner_body();
         }
@@ -423,6 +433,7 @@ impl LolcodeCompiler {
     }
 
     fn parse_inner_body(&mut self){
+        self.push_scope();
         if self.is_maek(&self.current_tok) {
             let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
             if self.is_paragraf(&peek) {
@@ -463,6 +474,7 @@ impl LolcodeCompiler {
 
 
     fn parse_paragraph(&mut self){
+        self.push_scope(); // create scope for variables in paragraph
         self.maek();
         self.paragraf_name();
         self.html_output.push_str("<p>");
@@ -470,6 +482,7 @@ impl LolcodeCompiler {
         self.parse_inner_paragraph();
         self.mkay();
         self.html_output.push_str("</p>");
+        self.pop_scope(); // remove paragraph scope
     }
 
     fn parse_inner_paragraph(&mut self){
@@ -524,7 +537,8 @@ impl LolcodeCompiler {
             self.varvalue();
             self.mkay();
             
-            self.vars.insert(name, val); // storing defined variable to hashmap
+            let current_scope = self.vars.last_mut().unwrap();
+            current_scope.insert(name, val);
         }
     }
 
@@ -535,8 +549,13 @@ impl LolcodeCompiler {
         self.varname();
         self.oic();
 
-        let val = self.vars.get(&var_name).cloned().unwrap_or(var_name);
-
+        let mut val = var_name.clone();
+        for scope in self.vars.iter().rev() {
+            if let Some(v) = scope.get(&var_name) {
+                val = v.clone();
+                break;
+            }
+        }
         self.html_output.push_str(&format!("{}", val));
     }
 
@@ -557,6 +576,7 @@ impl LolcodeCompiler {
     }
 
     fn parse_list_items(&mut self){
+        self.push_scope(); // create scope for variables in list items
         if self.is_gimmeh(&self.current_tok) {
             let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
             if self.is_item(&peek) {
@@ -568,6 +588,7 @@ impl LolcodeCompiler {
                 self.parse_list_items();
             }
         }
+        self.pop_scope(); // remove list item scope
     }
 
     fn parse_inner_list(&mut self){
