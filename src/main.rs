@@ -658,7 +658,7 @@ fn parse_list(&mut self){
     fn parse_link(&mut self){
         self.gimmeh();
         self.linx_name();
-        
+
         let url = self.current_tok.clone(); 
         self.address();
         
@@ -757,6 +757,12 @@ fn main() {
     }
 
     let filename = &args[1];
+
+    if !filename.ends_with(".lol") {
+        eprintln!("Error: Invalid file extension, only .lol files are accepted.");
+        std::process::exit(1);
+    }
+
     let sentence = fs::read_to_string(filename).unwrap_or_else(|err| {
         eprintln!("Error reading file '{}': {}", filename, err);
         std::process::exit(1);
@@ -775,8 +781,6 @@ fn main() {
         eprintln!("Error writing HTML file '{}': {}", html_filename, err);
         std::process::exit(1);
     });
-
-    println!("Compilation successful! Generated {}", html_filename);
 
     let absolute_path = fs::canonicalize(&html_filename)
         .unwrap_or_else(|_| path.to_path_buf());
