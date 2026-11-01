@@ -478,7 +478,11 @@ impl LolcodeCompiler {
         self.maek();
         self.paragraf_name();
         self.html_output.push_str("<p>");
-        self.parse_variable_define(); // optional
+
+        if self.is_ihaz(&self.current_tok) { // optional variable define
+            self.parse_variable_define();
+        }
+
         self.parse_inner_paragraph();
         self.mkay();
         self.html_output.push_str("</p>");
@@ -537,8 +541,9 @@ impl LolcodeCompiler {
             self.varvalue();
             self.mkay();
             
+            // let current scope be the last scope in the vars stack (scopes), and insert the variable name and value into it
             let current_scope = self.vars.last_mut().unwrap();
-            current_scope.insert(name, val);
+            current_scope.insert(name, val); // insert the variable name and value into the scope
         }
     }
 
@@ -550,8 +555,9 @@ impl LolcodeCompiler {
         self.oic();
 
         let mut val = var_name.clone();
+        // check for variable in current scope
         for scope in self.vars.iter().rev() {
-            if let Some(v) = scope.get(&var_name) {
+            if let Some(v) = scope.get(&var_name) { // if variable is found in the current scope, use its value
                 val = v.clone();
                 break;
             }
@@ -567,59 +573,87 @@ impl LolcodeCompiler {
         self.html_output.push_str("</b>");
     }
 
-    fn parse_list(&mut self){
-        self.gimmeh();
-        self.bold_name();
-        self.parse_text();
-        self.oic();
+fn parse_list(&mut self){
+        self.maek();
+        self.list_name();
+        self.parse_list_items();
+        self.mkay();
         self.html_output.push_str("</ul>");
     }
 
     fn parse_list_items(&mut self){
-        self.push_scope(); // create scope for variables in list items
-        if self.is_gimmeh(&self.current_tok) {
-            let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
-            if self.is_item(&peek) {
-                self.gimmeh();
-                self.item_name();
-                self.parse_variable_define(); // optional
-                self.parse_inner_list();
-                self.oic();
-                self.parse_list_items();
+        while self.is_gimmeh(&self.current_tok) {
+            self.push_scope(); // create scope for variables in list item
+
+            self.gimmeh();
+            self.item_name();
+
+            if self.is_ihaz(&self.current_tok) {
+                self.parse_variable_define();
             }
+            
+            // Parse everything inside the list item iteratively
+            self.parse_inner_list(); 
+        
+            self.oic();
+            self.html_output.push_str("</li>");
+
+            self.pop_scope(); // remove list item scope 
         }
-        self.pop_scope(); // remove list item scope
     }
 
     fn parse_inner_list(&mut self){
-        if self.is_obtw(&self.current_tok) {
-            self.parse_comment();
-        } else if self.is_newline(&self.current_tok) {
-            self.parse_newline();
-        } else if self.is_ihaz(&self.current_tok) {
-            self.parse_variable_use();
-        } else if self.is_gimmeh(&self.current_tok) {
-            let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
-            if self.is_bold(&peek) {
-                self.parse_bold();
-            } else if self.is_linx(&peek) {
-                self.parse_link();
-            } else if self.is_var(&peek) {
+        let mut item_depth = 0;
+
+        while !self.current_tok.is_empty() {
+            // If we hit an OIC at depth 0, it belongs to our list item—stop here!
+            if self.is_oic(&self.current_tok) && item_depth == 0 {
+                break;
+            }
+
+            // Track entering a nested list item
+            if self.is_gimmeh(&self.current_tok) {
+                // Peek ahead to see if it's an item start
+                let peek = self.lexer.tokens.first().cloned().unwrap_or_default();
+                if self.is_item(&peek) {
+                    item_depth += 1;
+                }
+            } 
+            // Track exiting a nested list item
+            else if self.is_oic(&self.current_tok) {
+                item_depth -= 1;
+            }
+
+            // Normal token processing inside the inner list
+            if self.is_obtw(&self.current_tok) {
+                self.parse_comment();
+            } else if self.is_newline(&self.current_tok) {
+                self.parse_newline();
+            } else if self.is_ihaz(&self.current_tok) {
                 self.parse_variable_use();
+            } else if self.is_gimmeh(&self.current_tok) {
+                self.gimmeh();
+                let peek = self.lexer.tokens.first().cloned().unwrap_or_default();
+                if self.is_bold(&peek) {
+                    self.parse_bold();
+                } else if self.is_linx(&peek) {
+                    self.parse_link();
+                } else if self.is_var(&peek) {
+                    self.parse_variable_use();
+                } else {
+                    self.parse_text();
+                }
+            } else if self.is_maek(&self.current_tok) {
+                let peek = self.lexer.tokens.first().cloned().unwrap_or_default();
+                if self.is_list(&peek) {
+                    self.parse_list();
+                } else {
+                    self.parse_text();
+                }
             } else {
                 self.parse_text();
             }
-        } else if self.is_maek(&self.current_tok) {
-            let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
-            if self.is_list(&peek) {
-                self.parse_list();
-            } else {
-                self.parse_text();
-            }
-        } else {
-            self.parse_text();
         }
-        self.parse_inner_list();
     }
 
     fn parse_link(&mut self){
@@ -649,7 +683,7 @@ impl LolcodeCompiler {
         let val = self.current_tok.clone();
         self.html_output.push_str(&format!("{} ", val));
         let _ = self.next_token();
-        self.parse_text();
+        let _ = self.parse_text();
     }
 }
 
