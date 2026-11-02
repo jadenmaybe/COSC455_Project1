@@ -66,6 +66,8 @@ pub trait SyntaxAnalyzer {
     fn parse_text(&mut self);           
 }
 
+// -- Lexical Analyzer
+
 pub struct SimpleLexicalAnalyzer {
     input: Vec<char>,
     position: usize,
@@ -100,17 +102,30 @@ impl SimpleLexicalAnalyzer {
             }
             if c.is_whitespace() {
                 if !self.current_build.is_empty() {
-                    self.tokens.push(std::mem::take(&mut self.current_build));
+                    let token = std::mem::take(&mut self.current_build);
+                    self.push_valid_token(token);
                 }
             } else {
                 self.add_char(c);
             }
         }
         if !self.current_build.is_empty() {
-            self.tokens.push(std::mem::take(&mut self.current_build));
+            let token = std::mem::take(&mut self.current_build);
+            self.push_valid_token(token);
         }
         self.tokens.reverse();
     }
+
+    fn push_valid_token(&mut self, token: String) {
+        if token.starts_with('#') {
+            if !self.lookup(&token) {
+                eprintln!("Lexical error: Unknown annotation '{}'", token);
+                std::process::exit(1);
+            }
+        }
+        self.tokens.push(token);
+    }
+
 }
 
 impl LexicalAnalyzer for SimpleLexicalAnalyzer {
@@ -129,13 +144,17 @@ impl LexicalAnalyzer for SimpleLexicalAnalyzer {
     }
 
     fn lookup(&self, s: &str) -> bool {
-        matches!(
-            s.to_uppercase().as_str(),
-            "#HAI" | "#KBYE" | "#OBTW" | "#TLDR" | "#MAEK" | "#OIC" | 
-            "#GIMMEH" | "#MKAY" | "HEAD" | "TITLE" | "PARAGRAF" | 
-            "BOLD" | "LIST" | "ITEM" | "#NEWLINE" | "LINX" | 
-            "#IHAZ" | "#ITIZ" | "VAR"
-        ) || !s.is_empty()
+        if s.starts_with('#') {
+            matches!(
+                s.to_uppercase().as_str(),
+                "#HAI" | "#KBYE" | "#OBTW" | "#TLDR" | "#MAEK" | "#OIC" | 
+                "#GIMMEH" | "#MKAY" | "HEAD" | "TITLE" | "PARAGRAF" | 
+                "BOLD" | "LIST" | "ITEM" | "#NEWLINE" | "LINX" | 
+                "#IHAZ" | "#ITIZ" | "VAR"
+            )
+        } else {
+            !s.is_empty()
+        }
     }
 
 }
@@ -203,6 +222,7 @@ impl LolcodeCompiler {
     #[inline] fn is_itiz(&self, s: &str) -> bool { s.eq_ignore_ascii_case("#ITIZ") }
     #[inline] fn is_var(&self, s: &str) -> bool { s.eq_ignore_ascii_case("VAR") }
     
+    // -- terminal functions
     
     fn hai(&mut self) {
         if self.is_hai(&self.current_tok) {
@@ -387,6 +407,8 @@ impl LolcodeCompiler {
         let _ = self.next_token();
     }
 
+    // -- non-terminal functions
+
     fn parse_lolcode(&mut self){
         self.hai();
         self.parse_comment();
@@ -489,10 +511,11 @@ impl LolcodeCompiler {
     }
 
     fn parse_inner_paragraph(&mut self){
-        if !self.current_tok.is_empty() && !self.is_mkay(&self.current_tok) {
+        while !self.current_tok.is_empty()
+            && !self.is_mkay(&self.current_tok)
+        {
             self.parse_inner_text();
-            self.parse_inner_paragraph();
-        }        
+        }
     }
 
     fn parse_inner_text(&mut self){
@@ -672,21 +695,26 @@ fn parse_list(&mut self){
     }
 
     fn parse_text(&mut self){
-        if self.current_tok.is_empty() 
-            || self.is_tldr(&self.current_tok)
-            || self.is_oic(&self.current_tok)
-            || self.is_mkay(&self.current_tok)
-            || self.is_hai(&self.current_tok)
-            || self.is_kbye(&self.current_tok)
-            || self.current_tok.starts_with('#') 
+        if self.current_tok.is_empty()
+            || self.current_tok.starts_with('#')
             || self.lexer.tag_names.iter().any(|t| t.eq_ignore_ascii_case(&self.current_tok))
         {
-            return;
+            eprintln!("Syntax error: '{}' was found when TEXT was expected.", self.current_tok);
+            std::process::exit(1);
         }
-        let val = self.current_tok.clone();
-        self.html_output.push_str(&format!("{} ", val));
-        let _ = self.next_token();
-        let _ = self.parse_text();
+
+        loop {
+            let val = self.current_tok.clone();
+            self.html_output.push_str(&format!("{} ", val));
+            let _ = self.next_token();
+
+            if self.current_tok.is_empty()
+                || self.current_tok.starts_with('#')
+                || self.lexer.tag_names.iter().any(|t| t.eq_ignore_ascii_case(&self.current_tok))
+            {
+                break;
+            }
+        }
     }
 }
 
@@ -750,43 +778,46 @@ fn open_in_browser(path: &str) -> io::Result<ExitStatus> {
 
 // -- Main
 fn main() {
+    // collect command line arguments
     let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
+    if args.len() < 2 { // check if input file is provided (args.len < 2 because args[0] is the program name and args[1] is the input file)
         eprintln!("Usage: {} <input_file>", args[0]);
         std::process::exit(1);
     }
 
-    let filename = &args[1];
+    let filename = &args[1]; // set filename to args[1] (input file)
 
-    if !filename.ends_with(".lol") {
+    if !filename.ends_with(".lol") { // check if input file has .lol extension
         eprintln!("Error: Invalid file extension, only .lol files are accepted.");
         std::process::exit(1);
     }
 
-    let sentence = fs::read_to_string(filename).unwrap_or_else(|err| {
+    let sentence = fs::read_to_string(filename).unwrap_or_else(|err| { // check if input file can be read/exists
         eprintln!("Error reading file '{}': {}", filename, err);
         std::process::exit(1);
     });
 
+    // create a new compiler instance and compile the input sentence
     let mut compiler = LolcodeCompiler::new();
-    compiler.compile(&sentence);
-    compiler.parse();
+    compiler.compile(&sentence); // &sentence is a reference to the sentence string, which is read from the input file
+    compiler.parse(); // parses the tokens generated
 
+    // create a Path object from the input filename
+    let path = Path::new(filename); 
+    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("output"); // get the file stem (file name)
+    let html_filename = format!("{}.html", stem); // create html_filename by combining the file stem (name) and .html file type
 
-    let path = Path::new(filename);
-    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
-    let html_filename = format!("{}.html", stem);
-
-    fs::write(&html_filename, &compiler.html_output).unwrap_or_else(|err| {
+    fs::write(&html_filename, &compiler.html_output).unwrap_or_else(|err| { 
         eprintln!("Error writing HTML file '{}': {}", html_filename, err);
         std::process::exit(1);
     });
 
-    let absolute_path = fs::canonicalize(&html_filename)
+    // get the path of the html file
+    let absolute_path = fs::canonicalize(&html_filename) 
         .unwrap_or_else(|_| path.to_path_buf());
-    let path_str = absolute_path.to_str().unwrap_or(&html_filename);
+    let path_str = absolute_path.to_str().unwrap_or(&html_filename); // convert the path to a string
 
-    match open_in_browser(path_str) {
+    match open_in_browser(path_str) { // open the html file path in the default browser
         Ok(status) if status.success() => println!("Successfully opened {} in the default browser.", html_filename),
         Ok(status) => eprintln!("Browser command exited with an error status: {}", status),
         Err(e) => eprintln!("Failed to execute the system command: {}", e),
