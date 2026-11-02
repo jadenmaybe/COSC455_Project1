@@ -129,21 +129,21 @@ impl SimpleLexicalAnalyzer {
 }
 
 impl LexicalAnalyzer for SimpleLexicalAnalyzer {
-    fn get_char(&mut self) -> char {
-        if self.position < self.input.len() {
-            let c = self.input[self.position];
-            self.position += 1;
-            c
-        } else {
+    fn get_char(&mut self) -> char { // outputs next char 
+        if self.position < self.input.len() { // check if the current position is less than the length of the input
+            let c = self.input[self.position]; // get the character at current position
+            self.position += 1; // increment position
+            c // return the character
+        } else { // else, return null
             '\0'
         }
     }
 
-    fn add_char(&mut self, c: char) {
+    fn add_char(&mut self, c: char) { // adds a character to the current token from the input stream
         self.current_build.push(c);
     }
 
-    fn lookup(&self, s: &str) -> bool {
+    fn lookup(&self, s: &str) -> bool { // checks for valid tokens
         if s.starts_with('#') {
             matches!(
                 s.to_uppercase().as_str(),
@@ -164,8 +164,8 @@ impl LexicalAnalyzer for SimpleLexicalAnalyzer {
 pub struct LolcodeCompiler {
     lexer: SimpleLexicalAnalyzer,
     current_tok: String,
-    pub html_output: String,
-    vars: Vec<HashMap<String, String>>,
+    pub html_output: String, // HTML output stored as a String, will be appended to as the compiler parses the input
+    vars: Vec<HashMap<String, String>>, // stack to handle variable scopes, formatted as <variable_name, variable_value>
 }
 
 impl LolcodeCompiler {
@@ -178,6 +178,7 @@ impl LolcodeCompiler {
         }
     }
 
+    // helper functions to manage scope (which is handled by a stack of hashmaps)
     fn push_scope(&mut self) {
         self.vars.push(HashMap::new());
     }
@@ -188,6 +189,7 @@ impl LolcodeCompiler {
         }
     }
 
+    // start parsing by checking the first token, setting it as current token, and checking validity of the token
     fn start(&mut self) {
         let candidate = self.lexer.tokens.pop().unwrap_or_default();
         if self.lexer.lookup(&candidate) {
@@ -223,6 +225,9 @@ impl LolcodeCompiler {
     #[inline] fn is_var(&self, s: &str) -> bool { s.eq_ignore_ascii_case("VAR") }
     
     // -- terminal functions
+    // all terminal functions check if the current token matches the expected token
+    // If yes, they consume it and move to the next token (and append the corresponding HTML tag if applicable)
+    // If not, they print an error message and exit
     
     fn hai(&mut self) {
         if self.is_hai(&self.current_tok) {
@@ -409,53 +414,53 @@ impl LolcodeCompiler {
 
     // -- non-terminal functions
 
-    fn parse_lolcode(&mut self){
-        self.hai();
-        self.parse_comment();
-        self.parse_head();
-        self.parse_variable_define(); // optional
-        self.parse_body();
-        self.kbye();
+    fn parse_lolcode(&mut self){ // lolcode follows the format: HAI <comments> <head> <optional-variable-define> <body> KBYE
+        self.hai(); // #HAI
+        self.parse_comment(); // comments (optional)
+        self.parse_head(); // head
+        self.parse_variable_define(); // optional variable
+        self.parse_body(); // body
+        self.kbye(); // #KBYE
     }
 
     fn parse_head(&mut self){
         if self.is_maek(&self.current_tok) {
-            self.maek();
-            self.head_name();
-            self.parse_title();
-            self.mkay();
+            self.maek(); // #MAEK
+            self.head_name(); // HEAD
+            self.parse_title(); // parse title inside head
+            self.mkay(); // #MKAY
             self.html_output.push_str("</head>")
         }
     }
 
     fn parse_title(&mut self){
-        self.gimmeh();
-        self.title_name();
-        self.parse_text();
-        self.oic();
-        self.html_output.push_str("</title>");
+        self.gimmeh(); // #GIMMEH
+        self.title_name(); // TITLE
+        self.parse_text(); // parse text inside title
+        self.oic(); // #OIC
+        self.html_output.push_str("</title>"); // append </title> tag to html_output
     }
 
     fn parse_comment(&mut self){
-        self.obtw();
-        self.html_output.push_str("<!-- ");
+        self.obtw(); // #OBTW
+        self.html_output.push_str("<!-- "); // append comment start tag to html_output
         self.parse_text();
-        self.tldr();
-        self.html_output.push_str(" -->");
+        self.tldr(); // #TLDR
+        self.html_output.push_str(" -->"); // append comment end tag to html_output
     }
 
     fn parse_body(&mut self){
-        self.html_output.push_str("<body>");
+        self.html_output.push_str("<body>"); // append <body> tag to html_output
         // parse inner body until end tag is found/no more tokens
         while !self.lexer.tokens.is_empty() && !self.is_kbye(&self.current_tok) {
             self.parse_inner_body();
         }
-        self.html_output.push_str("</body>");
+        self.html_output.push_str("</body>"); // append </body> tag to html_output
     }
 
     fn parse_inner_body(&mut self){
-        self.push_scope();
-        if self.is_maek(&self.current_tok) {
+        self.push_scope(); // create scope for variables in body
+        if self.is_maek(&self.current_tok) { // if the current token is '#MAEK': paragraph or list
             let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
             if self.is_paragraf(&peek) {
                 self.parse_paragraph();
@@ -464,20 +469,18 @@ impl LolcodeCompiler {
             } else {
                 self.parse_text();
             }
-        } else if self.is_obtw(&self.current_tok) {
+        } else if self.is_obtw(&self.current_tok) { // #OBTW -> comment
             self.parse_comment();
         } else if self.is_newline(&self.current_tok) {
             self.parse_newline();
-        } else if self.is_ihaz(&self.current_tok) {
-            self.parse_variable_use();
-        } else if self.is_ihaz(&self.current_tok) {
+        } else if self.is_ihaz(&self.current_tok) { // if the current token is '#IHAZ', parse variable
             let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
             if self.is_var(&peek) {
                 self.parse_variable_use();
             } else {
                 self.parse_variable_define();
             }    
-        } else if self.is_gimmeh(&self.current_tok) {
+        } else if self.is_gimmeh(&self.current_tok) { // else, if the current token is '#GIMMEH': bold, link, variable use, or text
             let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
             if self.is_bold(&peek) {
                 self.parse_bold();
@@ -511,6 +514,7 @@ impl LolcodeCompiler {
     }
 
     fn parse_inner_paragraph(&mut self){
+        // parse inner paragraph until end tag is found/no more tokens
         while !self.current_tok.is_empty()
             && !self.is_mkay(&self.current_tok)
         {
@@ -519,12 +523,12 @@ impl LolcodeCompiler {
     }
 
     fn parse_inner_text(&mut self){
-        if self.is_ihaz(&self.current_tok) {
+        if self.is_ihaz(&self.current_tok) { // if the current token is '#IHAZ', parse variable
             self.parse_variable_use();
-        } else if self.is_obtw(&self.current_tok) {
+        } else if self.is_obtw(&self.current_tok) { // if the current token is '#OBTW', parse comment
             self.parse_comment();
-        } else if self.is_gimmeh(&self.current_tok) {
-            let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
+        } else if self.is_gimmeh(&self.current_tok) { // else, if the current token is '#GIMMEH': bold, link, variable use, or text
+            let peek = self.lexer.tokens.last().cloned().unwrap_or_default(); // peek at the next token to determine what to parse
             if self.is_bold(&peek) {
                 self.parse_bold();
             } else if self.is_linx(&peek) {
@@ -534,8 +538,8 @@ impl LolcodeCompiler {
             } else {
                 self.parse_text();
             }
-        } else if self.is_maek(&self.current_tok) {
-            let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
+        } else if self.is_maek(&self.current_tok) { // else, if the current token is '#MAEK': list or text
+            let peek = self.lexer.tokens.last().cloned().unwrap_or_default(); // peek at the next token to determine what to parse
             if self.is_list(&peek) {
                 self.parse_list();
             } else {
@@ -549,18 +553,18 @@ impl LolcodeCompiler {
     }
 
     fn parse_variable_define(&mut self){
-        if self.is_ihaz(&self.current_tok) {
+        if self.is_ihaz(&self.current_tok) { // check if the current token is #IHAZ
             self.ihaz();
             let name = self.current_tok.clone(); // setting retrieved name token to name
-            self.varname();
-            if self.is_itiz(&self.current_tok) {
+            self.varname(); // parse the variable name
+            if self.is_itiz(&self.current_tok) { // check if the current token is #ITIZ
                 let _ = self.next_token();
-            } else {
+            } else { // else, print error
                 eprintln!("Syntax error: '{}' was found when '#ITIZ' was expected.", self.current_tok);
                 std::process::exit(1);
             }
             let val = self.current_tok.clone(); // setting retrieved value token to var
-            self.varvalue();
+            self.varvalue(); // parse the variable value
             self.mkay();
             
             // let current scope be the last scope in the vars stack (scopes), and insert the variable name and value into it
@@ -570,112 +574,86 @@ impl LolcodeCompiler {
     }
 
     fn parse_variable_use(&mut self){
-        self.gimmeh();
-        self.var_keyword();
-        let var_name = self.current_tok.clone();
-        self.varname();
-        self.oic();
+        self.gimmeh(); // #GIMMEH
+        self.var_keyword(); // VAR
+        let var_name = self.current_tok.clone(); // retrieve the variable name token and store it in var_name
+        self.varname(); // parse the variable name
+        self.oic(); // #OIC
 
-        let mut val = var_name.clone();
-        // check for variable in current scope
-        for scope in self.vars.iter().rev() {
-            if let Some(v) = scope.get(&var_name) { // if variable is found in the current scope, use its value
-                val = v.clone();
-                break;
-            }
-        }
-        self.html_output.push_str(&format!("{}", val));
+        // search for the variable in the scopes stack (vars) and retrieve its value if found
+        let val = self.vars.iter().rev()
+            .find_map(|scope| scope.get(&var_name))
+            .unwrap_or_else(|| { // if the variable is not found in any scope, print an error message and exit
+                eprintln!("Error: variable '{}' is used but was never defined.", var_name);
+                std::process::exit(1);
+            });
+        self.html_output.push_str(val); // append the variable value to the html_output
     }
 
     fn parse_bold(&mut self){
-        self.gimmeh();
-        self.bold_name();
-        self.parse_text();
-        self.oic();
-        self.html_output.push_str("</b>");
+        self.gimmeh(); // #GIMMEH
+        self.bold_name(); // BOLD
+        self.parse_text(); // parse text to be bold
+        self.oic(); // #OIC
+        self.html_output.push_str("</b>"); // append </b> tag to html_output
     }
 
-fn parse_list(&mut self){
-        self.maek();
-        self.list_name();
-        self.parse_list_items();
-        self.mkay();
-        self.html_output.push_str("</ul>");
+    fn parse_list(&mut self){
+        self.maek(); // #MAEK
+        self.list_name(); // LIST
+        if !self.is_gimmeh(&self.current_tok) { // requires a list item, so an error is thrown if not (#GIMMEH starts list items)
+            eprintln!("Syntax error: '{}' was found when '#GIMMEH' was expected.", self.current_tok);
+            std::process::exit(1);
+        }
+        self.parse_list_items(); // first item, then any further items
+        self.mkay(); // #MKAY
+        self.html_output.push_str("</ul>"); // append </ul> tag to html_output
     }
 
     fn parse_list_items(&mut self){
-        while self.is_gimmeh(&self.current_tok) {
-            self.push_scope(); // create scope for variables in list item
+        if self.is_gimmeh(&self.current_tok) {
+            self.push_scope(); // scope for variables defined in this list item
 
-            self.gimmeh();
-            self.item_name();
+            self.gimmeh(); // #GIMMEH
+            self.item_name(); // ITEM
+            self.parse_variable_define(); // optional variable
+            self.parse_inner_list(); // get the content of the list item
+            self.oic(); // #OIC
+            self.html_output.push_str("</li>"); // append </li> tag to html_output
 
-            if self.is_ihaz(&self.current_tok) {
-                self.parse_variable_define();
-            }
-            
-            // Parse everything inside the list item iteratively
-            self.parse_inner_list(); 
-        
-            self.oic();
-            self.html_output.push_str("</li>");
+            self.pop_scope(); // remove list item scope
 
-            self.pop_scope(); // remove list item scope 
+            self.parse_list_items(); // recursive call to parse the next list item
         }
     }
 
+    // function to parse the content of a list item, which can include comments, newlines, bold text, links, variable uses, and regular text
     fn parse_inner_list(&mut self){
-        let mut item_depth = 0;
-
-        while !self.current_tok.is_empty() {
-            // If we hit an OIC at depth 0, it belongs to our list item—stop here!
-            if self.is_oic(&self.current_tok) && item_depth == 0 {
-                break;
-            }
-
-            // Track entering a nested list item
-            if self.is_gimmeh(&self.current_tok) {
-                // Peek ahead to see if it's an item start
-                let peek = self.lexer.tokens.first().cloned().unwrap_or_default();
-                if self.is_item(&peek) {
-                    item_depth += 1;
-                }
-            } 
-            // Track exiting a nested list item
-            else if self.is_oic(&self.current_tok) {
-                item_depth -= 1;
-            }
-
-            // Normal token processing inside the inner list
-            if self.is_obtw(&self.current_tok) {
-                self.parse_comment();
-            } else if self.is_newline(&self.current_tok) {
-                self.parse_newline();
-            } else if self.is_ihaz(&self.current_tok) {
-                self.parse_variable_use();
-            } else if self.is_gimmeh(&self.current_tok) {
-                self.gimmeh();
-                let peek = self.lexer.tokens.first().cloned().unwrap_or_default();
-                if self.is_bold(&peek) {
-                    self.parse_bold();
-                } else if self.is_linx(&peek) {
-                    self.parse_link();
-                } else if self.is_var(&peek) {
-                    self.parse_variable_use();
-                } else {
-                    self.parse_text();
-                }
-            } else if self.is_maek(&self.current_tok) {
-                let peek = self.lexer.tokens.first().cloned().unwrap_or_default();
-                if self.is_list(&peek) {
-                    self.parse_list();
-                } else {
-                    self.parse_text();
-                }
-            } else {
-                self.parse_text();
-            }
+        if self.is_oic(&self.current_tok) { // if #OIC is found (end of list item), return
+            return;
         }
+
+        if self.is_obtw(&self.current_tok) {
+            self.parse_comment();
+        } else if self.is_newline(&self.current_tok) {
+            self.parse_newline();
+        } else if self.is_gimmeh(&self.current_tok) {
+            let peek = self.lexer.tokens.last().cloned().unwrap_or_default();
+            if self.is_bold(&peek) {
+                self.parse_bold();
+            } else if self.is_linx(&peek) {
+                self.parse_link();
+            } else if self.is_var(&peek) {
+                self.parse_variable_use();
+            } else {
+                self.parse_text(); // not valid list-content, caught by parse_text
+            }
+        } else {
+            self.parse_text();
+        }
+
+        // recursive parse
+        self.parse_inner_list();
     }
 
     fn parse_link(&mut self){
@@ -696,21 +674,21 @@ fn parse_list(&mut self){
 
     fn parse_text(&mut self){
         if self.current_tok.is_empty()
-            || self.current_tok.starts_with('#')
+            || self.current_tok.starts_with('#') // check if the current token is a misplaced start/end tag
             || self.lexer.tag_names.iter().any(|t| t.eq_ignore_ascii_case(&self.current_tok))
         {
             eprintln!("Syntax error: '{}' was found when TEXT was expected.", self.current_tok);
             std::process::exit(1);
         }
 
-        loop {
-            let val = self.current_tok.clone();
-            self.html_output.push_str(&format!("{} ", val));
-            let _ = self.next_token();
+        loop { // parse text until a special token (#) is found
+            let val = self.current_tok.clone(); // store the current token in val
+            self.html_output.push_str(&format!("{} ", val)); // append the text from val to the html_output
+            let _ = self.next_token(); // get the next token
 
-            if self.current_tok.is_empty()
-                || self.current_tok.starts_with('#')
-                || self.lexer.tag_names.iter().any(|t| t.eq_ignore_ascii_case(&self.current_tok))
+            if self.current_tok.is_empty() // check if the current token is empty
+                || self.current_tok.starts_with('#') // check if the current token is a misplaced start/end tag
+                || self.lexer.tag_names.iter().any(|t| t.eq_ignore_ascii_case(&self.current_tok)) // check if the current token is a tag name
             {
                 break;
             }
