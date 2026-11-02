@@ -1,0 +1,72 @@
+<valid_lolcode>	::=	<START_TAG> (<comment>|<make_var>|ℇ) (<head>|ℇ) <paragraph> <END_TAG>
+
+<head>		::=	<HEAD_START> <title> <head_end>
+<title>		::=	<TITLE_START> (<text_content>|ℇ) <title_end>
+
+<paragraph>	::=	<P_START> (<text_content>|<bold>|<list>|<NEWLINE>|<comment>|ℇ) <p_end>
+
+<list>		::=	<UL_START> (list item|ℇ) <ul_end>
+<list_item>	::=	<LI_START> (<text_content>|<bold>) <li_end>
+
+<make_var>	::=	<VARDEF_INIT> <word> <VARDEF_VALUE> <word> <vardef_end>
+<var>		::=	<GETVAR_START> <word> <getvar_end>
+
+<link>		::=	<LINK_START> <text_content> <link_end>
+
+<bold>		::=	<B_START> <text_content> <b_end>
+
+<comment>	::=	<COMMENT_START> <text_content> <COMMENT_END>
+
+<text_content>	::=	<word>|<SPACE>|<link>|<var>
+
+<word>		::= 	<TEXT>|ℇ
+
+
+<head_end>	::=	<MKAY>
+<p_end>		::=	<MKAY>
+<ul_end>	::=	<MKAY>
+<vardef_end>	::=	<MKAY>
+
+<getvar_end>	::=	<OIC>
+<title_end>	::=	<OIC>
+<b_end>		::=	<OIC>
+<li_end>	::=	<OIC>
+<link_end>	::=	<OIC>
+<getvar_end>	::=	<OIC>
+
+
+<START_TAG>	::=	#HAI |#hai
+<END_TAG>	::=	#KBYE|#kbye
+
+<COMMENT_START>	::=	#OBTW|#obtw
+<COMMENT_END>	::=	#TLDR|#tldr
+
+<HEAD_START>	::=	#MAEK HEAD|#maek head
+
+<TITLE_START>	::=	#GIMMEH TITLE|#gimmeh title
+
+<P_START>	::=	#MAEK PARAGRAF|#maek paragraf
+
+<B_START>	::=	#GIMMEH BOLD|#gimmeh bold
+
+<UL_START>	::=	#MAEK LIST|#maek list
+
+<LI_START>	::=	#GIMMEH ITEM|#gimmeh item
+
+<NEWLINE>	::=	#NEWLINE|#newline
+
+<LINK_START>	::=	#GIMMEH LINX|#gimmeh linx
+
+<VARDEF_INIT>	::=	#IHAZ|#ihaz
+<VARDEF_VALUE>	::=	#ITIZ|#itiz
+
+<GETVAR_START>	::=	#GIMMEH VAR|#gimmeh var
+
+
+<MKAY>		::=	#MKAY | #mkay
+<OIC>		::=	#OIC | #oic
+
+
+<TEXT>		::=	a..z|A..Z|0..9
+<SPECIAL_CHAR>	::=	,|.|"|:|?|!|%|=|/
+<SPACE>		::=	' '|\t|\n|u000C

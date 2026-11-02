@@ -1,0 +1,1 @@
+C:\Users\cotca\School\Y5\COSC455\ Prog.\ Lang.\ Design\Projects\Project\ 1\lolcode_compiler\.\bin\release\lolcode_compiler.exe: C:\Users\cotca\School\Y5\COSC455\ Prog.\ Lang.\ Design\Projects\Project\ 1\lolcode_compiler\src\main.rs
